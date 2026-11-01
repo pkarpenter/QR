@@ -173,12 +173,18 @@ async def toggle_qr_enabled(
     db=Depends(get_supabase),
 ):
     """Toggle the is_enabled flag on a QR code."""
+    from app.services.multi_link_service import get_qr_description
     cur = db.table("qr_codes").select("is_enabled").eq("id", qr_id).execute()
     if not cur.data:
         raise HTTPException(status_code=404, detail="QR code not found")
-    new_state = not cur.data[0]["is_enabled"]
+    cur_enabled = cur.data[0].get("is_enabled")
+    new_state = False if cur_enabled is not False else True
     res = db.table("qr_codes").update({"is_enabled": new_state}).eq("id", qr_id).execute()
-    return res.data[0]
+    if not res.data:
+        raise HTTPException(status_code=500, detail="Failed to toggle QR code")
+    updated = res.data[0]
+    desc = updated.get("description") or get_qr_description(qr_id)
+    return {**updated, "description": desc or None}
 
 
 def _build_qr_stream(url: str, slug: str, fmt: str):

@@ -7,9 +7,19 @@ import Links from './pages/Links'
 import EditQR from './pages/EditQR'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
+import PublicRedirect from './pages/PublicRedirect'
 
 function AppRoutes() {
   const { session, loading } = useAuth()
+
+  // Handle public dynamic QR code scan redirect without requiring login
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/go/')) {
+    return (
+      <Routes>
+        <Route path="/go/:slug" element={<PublicRedirect />} />
+      </Routes>
+    )
+  }
 
   if (loading) {
     return (

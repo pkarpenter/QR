@@ -215,10 +215,12 @@ export const toggleQrCode = async (id) => {
     try {
       const res = await api.patch(`/api/qr/${id}/toggle`)
       return res.data
-    } catch (err) {}
+    } catch (err) {
+      console.warn('Backend toggle failed, falling back to direct Supabase:', err.message)
+    }
   }
   const { data: current } = await supabase.table('qr_codes').select('is_enabled').eq('id', id).single()
-  const nextVal = !current?.is_enabled
+  const nextVal = current?.is_enabled === false ? true : false
   const { data, error } = await supabase.table('qr_codes').update({ is_enabled: nextVal }).eq('id', id).select().single()
   if (error) throw error
   return data

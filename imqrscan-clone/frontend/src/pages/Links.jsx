@@ -30,6 +30,7 @@ import {
   addLink,
   updateQrCode,
   deleteQrCode,
+  toggleQrCode,
   getQrDownloadUrl,
   getMultiLinkConfig,
   saveMultiLinkConfig,
@@ -255,6 +256,22 @@ export default function Links() {
     }
   }
 
+  async function handleToggleCurrentQr() {
+    if (!currentQr) return
+    const nextState = currentQr.is_enabled === false ? true : false
+    setCurrentQr(prev => ({ ...prev, is_enabled: nextState }))
+    setQrCodes(prev => prev.map(q => q.id === currentQr.id ? { ...q, is_enabled: nextState } : q))
+    showToast(`${currentQr.name} is now ${nextState ? 'Active 🟢' : 'Not Active ⚪'}`)
+    try {
+      await toggleQrCode(currentQr.id)
+    } catch (err) {
+      console.error('Error toggling QR status:', err)
+      setCurrentQr(prev => ({ ...prev, is_enabled: !nextState }))
+      setQrCodes(prev => prev.map(q => q.id === currentQr.id ? { ...q, is_enabled: !nextState } : q))
+      showToast('Error updating QR status.')
+    }
+  }
+
   if (loading) {
     return (
       <div className="qr-dark-page flex items-center justify-center" style={{ minHeight: '80vh' }}>
@@ -310,10 +327,25 @@ export default function Links() {
                 <Sparkles size={12} />
                 <span>Smart code</span>
               </span>
-              <span className="badge-dark-live">
-                <span className="live-dot-green" />
-                Live
+              <span className={currentQr.is_enabled !== false ? 'badge-dark-live' : 'badge-dark-inactive'}>
+                <span className={currentQr.is_enabled !== false ? 'live-dot-green' : 'inactive-dot-gray'} />
+                {currentQr.is_enabled !== false ? 'Active' : 'Not Active'}
               </span>
+              <label
+                className="qr-toggle-label"
+                onClick={e => e.stopPropagation()}
+                title={currentQr.is_enabled !== false ? 'Click to deactivate QR' : 'Click to activate QR'}
+              >
+                <input
+                  type="checkbox"
+                  checked={currentQr.is_enabled !== false}
+                  onChange={handleToggleCurrentQr}
+                  style={{ display: 'none' }}
+                />
+                <span className={`qr-toggle-track ${currentQr.is_enabled !== false ? 'on' : 'off'}`}>
+                  <span className="qr-toggle-thumb" />
+                </span>
+              </label>
             </div>
             {currentQr.description && (
               <p style={{ marginTop: '0.4rem', fontSize: '0.85rem', color: '#94a3b8', maxWidth: '600px', lineHeight: '1.4' }}>

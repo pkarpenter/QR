@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import {
   QrCode,
   LayoutGrid,
@@ -34,12 +34,15 @@ import {
   getQrCodes,
   createQrCode,
   deleteQrCode,
+  toggleQrCode,
   getQrDownloadUrl,
   getDashboardStats,
 } from '../lib/api'
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const isQrListPage = location.pathname.startsWith('/qr')
   const [qrCodes, setQrCodes] = useState([])
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -146,6 +149,30 @@ export default function Dashboard() {
     }
   }
 
+  async function handleToggleQr(qr, e) {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    const nextState = qr.is_enabled === false ? true : false
+    // Optimistic UI update
+    setQrCodes(prev =>
+      prev.map(q => (q.id === qr.id ? { ...q, is_enabled: nextState } : q))
+    )
+    showToast(`${qr.name} is now ${nextState ? 'Active 🟢' : 'Not Active (Deactivated) ⚪'}`)
+
+    try {
+      await toggleQrCode(qr.id)
+    } catch (err) {
+      console.error('Failed to toggle QR status:', err)
+      // Rollback on error
+      setQrCodes(prev =>
+        prev.map(q => (q.id === qr.id ? { ...q, is_enabled: !nextState } : q))
+      )
+      showToast('Failed to update status. Please try again.')
+    }
+  }
+
   function handleCopy(url, id, e) {
     if (e) e.stopPropagation()
     navigator.clipboard.writeText(url)
@@ -193,14 +220,27 @@ export default function Dashboard() {
         <div className="pro-header-left">
           <div className="pro-header-tag">
             <span className="pulse-dot" />
-            <span>IMPRscan Cloud · Live Hub</span>
+            <span>{isQrListPage ? 'IMPRscan Dynamic Fleet' : 'IMPRscan Cloud · Live Hub'}</span>
           </div>
-          <h1 className="pro-header-title">
-            QR Analytics & <span className="gradient-text">Fleet Management</span>
-          </h1>
-          <p className="pro-header-subtitle">
-            Monitor real-time scan volume, configure instant dynamic 302 routing, and download vector QR assets.
-          </p>
+          {isQrListPage ? (
+            <>
+              <h1 className="pro-header-title">
+                All <span className="gradient-text">QR Codes</span>
+              </h1>
+              <p className="pro-header-subtitle">
+                Manage, activate or deactivate, filter, and configure all your dynamic QR codes.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="pro-header-title">
+                QR Analytics & <span className="gradient-text">Fleet Management</span>
+              </h1>
+              <p className="pro-header-subtitle">
+                Monitor real-time scan volume, configure instant dynamic 302 routing, and download vector QR assets.
+              </p>
+            </>
+          )}
         </div>
 
         <button
@@ -208,6 +248,7 @@ export default function Dashboard() {
           className="pro-btn-create"
           onClick={() => {
             setNewQrName('')
+            setNewQrDesc('')
             setShowCreateModal(true)
           }}
         >
@@ -216,77 +257,79 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* ─── 2. Executive KPI Cards (Row of 4) ─── */}
-      <div className="pro-kpis-grid">
-        {/* Active QR Codes */}
-        <div className="pro-kpi-card" style={{ '--kpi-border': '#06b6d4' }}>
-          <div className="pro-kpi-info">
-            <span className="pro-kpi-label">Active QR Codes</span>
-            <span className="pro-kpi-value">{loading ? '—' : qrCodes.length}</span>
-            <span className="pro-kpi-meta">
-              <Layers size={13} color="var(--accent)" />
-              <span>Permanent dynamic IDs</span>
-            </span>
+      {/* ─── 2. Executive KPI Cards (Row of 4) — Only on Dashboard ─── */}
+      {!isQrListPage && (
+        <div className="pro-kpis-grid">
+          {/* Active QR Codes */}
+          <div className="pro-kpi-card" style={{ '--kpi-border': '#06b6d4' }}>
+            <div className="pro-kpi-info">
+              <span className="pro-kpi-label">Active QR Codes</span>
+              <span className="pro-kpi-value">{loading ? '—' : qrCodes.length}</span>
+              <span className="pro-kpi-meta">
+                <Layers size={13} color="var(--accent)" />
+                <span>Permanent dynamic IDs</span>
+              </span>
+            </div>
+            <div className="pro-kpi-icon-box" style={{ background: 'rgba(6, 182, 212, 0.12)', color: 'var(--accent)' }}>
+              <QrCode size={24} />
+            </div>
           </div>
-          <div className="pro-kpi-icon-box" style={{ background: 'rgba(6, 182, 212, 0.12)', color: 'var(--accent)' }}>
-            <QrCode size={24} />
+
+          {/* Total Scans */}
+          <div className="pro-kpi-card" style={{ '--kpi-border': '#10b981' }}>
+            <div className="pro-kpi-info">
+              <span className="pro-kpi-label">Total Scans</span>
+              <span className="pro-kpi-value">
+                {loading ? '—' : (stats?.total_scans ?? totalScans).toLocaleString()}
+              </span>
+              <span className="pro-kpi-meta">
+                <TrendingUp size={13} color="var(--accent-green)" />
+                <span>Today: {stats?.today_scans ?? 0} scans</span>
+              </span>
+            </div>
+            <div className="pro-kpi-icon-box" style={{ background: 'rgba(16, 185, 129, 0.12)', color: 'var(--accent-green)' }}>
+              <Activity size={24} />
+            </div>
+          </div>
+
+          {/* Routing Links */}
+          <div className="pro-kpi-card" style={{ '--kpi-border': '#f59e0b' }}>
+            <div className="pro-kpi-info">
+              <span className="pro-kpi-label">Live Destinations</span>
+              <span className="pro-kpi-value">
+                {loading ? '—' : (stats?.active_links ?? activeRoutes)}
+              </span>
+              <span className="pro-kpi-meta">
+                <Zap size={13} color="var(--accent-yellow)" />
+                <span>Instant redirect ready</span>
+              </span>
+            </div>
+            <div className="pro-kpi-icon-box" style={{ background: 'rgba(245, 158, 11, 0.12)', color: 'var(--accent-yellow)' }}>
+              <Globe size={24} />
+            </div>
+          </div>
+
+          {/* System Health */}
+          <div className="pro-kpi-card" style={{ '--kpi-border': '#8b5cf6' }}>
+            <div className="pro-kpi-info">
+              <span className="pro-kpi-label">System Status</span>
+              <span className="pro-kpi-value" style={{ color: 'var(--accent-green)', fontSize: '1.65rem' }}>
+                100% Live
+              </span>
+              <span className="pro-kpi-meta">
+                <ShieldCheck size={13} color="var(--accent-green)" />
+                <span>Zero redirect latency</span>
+              </span>
+            </div>
+            <div className="pro-kpi-icon-box" style={{ background: 'rgba(139, 92, 246, 0.12)', color: '#a78bfa' }}>
+              <Sparkles size={24} />
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Total Scans */}
-        <div className="pro-kpi-card" style={{ '--kpi-border': '#10b981' }}>
-          <div className="pro-kpi-info">
-            <span className="pro-kpi-label">Total Scans</span>
-            <span className="pro-kpi-value">
-              {loading ? '—' : (stats?.total_scans ?? totalScans).toLocaleString()}
-            </span>
-            <span className="pro-kpi-meta">
-              <TrendingUp size={13} color="var(--accent-green)" />
-              <span>Today: {stats?.today_scans ?? 0} scans</span>
-            </span>
-          </div>
-          <div className="pro-kpi-icon-box" style={{ background: 'rgba(16, 185, 129, 0.12)', color: 'var(--accent-green)' }}>
-            <Activity size={24} />
-          </div>
-        </div>
-
-        {/* Routing Links */}
-        <div className="pro-kpi-card" style={{ '--kpi-border': '#f59e0b' }}>
-          <div className="pro-kpi-info">
-            <span className="pro-kpi-label">Live Destinations</span>
-            <span className="pro-kpi-value">
-              {loading ? '—' : (stats?.active_links ?? activeRoutes)}
-            </span>
-            <span className="pro-kpi-meta">
-              <Zap size={13} color="var(--accent-yellow)" />
-              <span>Instant redirect ready</span>
-            </span>
-          </div>
-          <div className="pro-kpi-icon-box" style={{ background: 'rgba(245, 158, 11, 0.12)', color: 'var(--accent-yellow)' }}>
-            <Globe size={24} />
-          </div>
-        </div>
-
-        {/* System Health */}
-        <div className="pro-kpi-card" style={{ '--kpi-border': '#8b5cf6' }}>
-          <div className="pro-kpi-info">
-            <span className="pro-kpi-label">System Status</span>
-            <span className="pro-kpi-value" style={{ color: 'var(--accent-green)', fontSize: '1.65rem' }}>
-              100% Live
-            </span>
-            <span className="pro-kpi-meta">
-              <ShieldCheck size={13} color="var(--accent-green)" />
-              <span>Zero redirect latency</span>
-            </span>
-          </div>
-          <div className="pro-kpi-icon-box" style={{ background: 'rgba(139, 92, 246, 0.12)', color: '#a78bfa' }}>
-            <Sparkles size={24} />
-          </div>
-        </div>
-      </div>
-
-      {/* ─── 3. Analytics Overview & Routing Insight Row ─── */}
-      {!loading && qrCodes.length > 0 && (
+      {/* ─── 3. Analytics Overview & Routing Insight Row — Only on Dashboard ─── */}
+      {!isQrListPage && !loading && qrCodes.length > 0 && (
         <div className="pro-analytics-row">
           {/* Left: Scan Traffic Breakdown by Code */}
           <div className="pro-panel-card">
@@ -523,7 +566,7 @@ export default function Dashboard() {
             return (
               <div
                 key={qr.id}
-                className="pro-grid-item"
+                className={`pro-grid-item ${qr.is_enabled === false ? 'is-deactivated' : ''}`}
                 onClick={() => navigate(`/qr/${qr.id}`)}
               >
                 <div className="pro-grid-top">
@@ -532,12 +575,29 @@ export default function Dashboard() {
                   </div>
 
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.35rem' }}>
-                      <h3 className="pro-qr-name" style={{ fontSize: '1.05rem' }}>{qr.name}</h3>
-                      <span className="pro-live-pill">
-                        <span className="green-dot" />
-                        Live
-                      </span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.45rem', marginBottom: '0.35rem' }}>
+                      <h3 className="pro-qr-name" style={{ fontSize: '1.05rem', margin: 0 }}>{qr.name}</h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+                        <span className={qr.is_enabled !== false ? 'pro-live-pill' : 'pro-inactive-pill'}>
+                          <span className={qr.is_enabled !== false ? 'green-dot' : 'inactive-dot'} />
+                          {qr.is_enabled !== false ? 'Active' : 'Not Active'}
+                        </span>
+                        <label
+                          className="qr-toggle-label"
+                          onClick={e => e.stopPropagation()}
+                          title={qr.is_enabled !== false ? 'Click to deactivate QR' : 'Click to activate QR'}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={qr.is_enabled !== false}
+                            onChange={e => handleToggleQr(qr, e)}
+                            style={{ display: 'none' }}
+                          />
+                          <span className={`qr-toggle-track ${qr.is_enabled !== false ? 'on' : 'off'}`}>
+                            <span className="qr-toggle-thumb" />
+                          </span>
+                        </label>
+                      </div>
                     </div>
 
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
@@ -600,6 +660,17 @@ export default function Dashboard() {
 
                     {activeMenuId === qr.id && (
                       <div className="pro-dropdown-menu" onClick={e => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          className="pro-menu-item"
+                          onClick={e => {
+                            setActiveMenuId(null)
+                            handleToggleQr(qr, e)
+                          }}
+                        >
+                          <Activity size={14} color={qr.is_enabled !== false ? 'var(--accent-green)' : '#94a3b8'} />
+                          <span>{qr.is_enabled !== false ? 'Deactivate QR Code' : 'Activate QR Code'}</span>
+                        </button>
                         <button
                           type="button"
                           className="pro-menu-item"
@@ -692,7 +763,7 @@ export default function Dashboard() {
             return (
               <div
                 key={qr.id}
-                className="pro-qr-card"
+                className={`pro-qr-card ${qr.is_enabled === false ? 'is-deactivated' : ''}`}
                 onClick={() => navigate(`/qr/${qr.id}`)}
               >
                 {/* Left QR Image Thumbnail */}
@@ -704,10 +775,27 @@ export default function Dashboard() {
                 <div className="pro-qr-content">
                   <div className="pro-qr-top-line">
                     <h3 className="pro-qr-name">{qr.name}</h3>
-                    <span className="pro-live-pill">
-                      <span className="green-dot" />
-                      Live Dynamic
-                    </span>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span className={qr.is_enabled !== false ? 'pro-live-pill' : 'pro-inactive-pill'}>
+                        <span className={qr.is_enabled !== false ? 'green-dot' : 'inactive-dot'} />
+                        {qr.is_enabled !== false ? 'Active' : 'Not Active'}
+                      </span>
+                      <label
+                        className="qr-toggle-label"
+                        onClick={e => e.stopPropagation()}
+                        title={qr.is_enabled !== false ? 'Click to deactivate QR' : 'Click to activate QR'}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={qr.is_enabled !== false}
+                          onChange={e => handleToggleQr(qr, e)}
+                          style={{ display: 'none' }}
+                        />
+                        <span className={`qr-toggle-track ${qr.is_enabled !== false ? 'on' : 'off'}`}>
+                          <span className="qr-toggle-thumb" />
+                        </span>
+                      </label>
+                    </div>
                   </div>
 
                   <div className="pro-qr-meta">
@@ -784,6 +872,17 @@ export default function Dashboard() {
 
                     {activeMenuId === qr.id && (
                       <div className="pro-dropdown-menu" onClick={e => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          className="pro-menu-item"
+                          onClick={e => {
+                            setActiveMenuId(null)
+                            handleToggleQr(qr, e)
+                          }}
+                        >
+                          <Activity size={14} color={qr.is_enabled !== false ? 'var(--accent-green)' : '#94a3b8'} />
+                          <span>{qr.is_enabled !== false ? 'Deactivate QR Code' : 'Activate QR Code'}</span>
+                        </button>
                         <button
                           type="button"
                           className="pro-menu-item"
