@@ -117,7 +117,8 @@ export default function Dashboard() {
       showToast('Dynamic QR Code created successfully!')
       navigate(`/qr/${created.id}`)
     } catch (err) {
-      console.error(err)
+      console.error('Error creating QR code:', err)
+      showToast(err.message || 'Failed to create QR code.')
     } finally {
       setCreating(false)
     }
