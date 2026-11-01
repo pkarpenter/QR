@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: qr-backend
+    runtime: python
+    rootDir: imqrscan-clone/backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    autoDeploy: true
+    envVars:
+      - key: SUPABASE_URL
+        value: https://tnqnbdratlkrfngkaemh.supabase.co
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: IP_HASH_SALT
+        value: c839a974bfa54d86b8561d368e7ec89e
+      - key: ADMIN_ORIGIN
+        value: https://*.vercel.app

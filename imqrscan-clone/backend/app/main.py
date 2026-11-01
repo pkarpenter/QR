@@ -13,6 +13,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
+    allow_origin_regex=r"https://.*\.vercel\.app|http://localhost:.*",
     allow_origins=[settings.ADMIN_ORIGIN, "https://admin.yourbrand.com"],
     allow_credentials=True,
     allow_methods=["*"],
