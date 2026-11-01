@@ -50,6 +50,7 @@ export default function Dashboard() {
   // Modals & Popups
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newQrName, setNewQrName] = useState('')
+  const [newQrDesc, setNewQrDesc] = useState('')
   const [creating, setCreating] = useState(false)
   const [activeMenuId, setActiveMenuId] = useState(null)
   const [qrToDelete, setQrToDelete] = useState(null)
@@ -110,10 +111,11 @@ export default function Dashboard() {
     if (!newQrName.trim()) return
     setCreating(true)
     try {
-      const created = await createQrCode(newQrName.trim())
+      const created = await createQrCode(newQrName.trim(), newQrDesc.trim())
       setQrCodes(prev => [created, ...prev])
       setShowCreateModal(false)
       setNewQrName('')
+      setNewQrDesc('')
       showToast('Dynamic QR Code created successfully!')
       navigate(`/qr/${created.id}`)
     } catch (err) {
@@ -538,9 +540,24 @@ export default function Dashboard() {
                       </span>
                     </div>
 
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.45rem' }}>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
                       Created {createdDate}
                     </div>
+
+                    {qr.description && (
+                      <p style={{
+                        fontSize: '0.78rem',
+                        color: 'var(--text-muted)',
+                        marginBottom: '0.45rem',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        lineHeight: 1.4,
+                      }}>
+                        {qr.description}
+                      </p>
+                    )}
 
                     <div className="pro-url-pill" onClick={e => e.stopPropagation()}>
                       <Link2 size={12} color="var(--accent)" />
@@ -698,6 +715,24 @@ export default function Dashboard() {
                     <span>·</span>
                     <span>Created {createdDate}</span>
                     <span>·</span>
+                  </div>
+
+                  {qr.description && (
+                    <p style={{
+                      fontSize: '0.8rem',
+                      color: 'var(--text-muted)',
+                      margin: '0.25rem 0 0.45rem 0',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 1,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      lineHeight: 1.4,
+                    }}>
+                      {qr.description}
+                    </p>
+                  )}
+
+                  <div className="pro-qr-meta" style={{ marginTop: '0.1rem' }}>
                     <div className="pro-url-pill" onClick={e => e.stopPropagation()}>
                       <Link2 size={12} color="var(--accent)" />
                       <span style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -875,6 +910,39 @@ export default function Dashboard() {
                 <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
                   A permanent short link will be assigned automatically. You can change destination URLs anytime.
                 </span>
+              </div>
+
+              <div className="form-group" style={{ marginTop: '0.9rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                  <label style={{ margin: 0 }}>Description (Optional)</label>
+                  <span style={{ fontSize: '0.75rem', color: newQrDesc.length > 2400 ? 'var(--accent-yellow)' : 'var(--text-muted)' }}>
+                    {newQrDesc.length} / 2500
+                  </span>
+                </div>
+                <textarea
+                  placeholder="Add campaign details, instructions, or notes (0 to 2,500 characters)..."
+                  value={newQrDesc}
+                  onChange={e => {
+                    if (e.target.value.length <= 2500) {
+                      setNewQrDesc(e.target.value)
+                    }
+                  }}
+                  maxLength={2500}
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '10px',
+                    padding: '0.75rem',
+                    color: '#f8fafc',
+                    fontSize: '0.88rem',
+                    fontFamily: 'inherit',
+                    resize: 'vertical',
+                    outline: 'none',
+                    lineHeight: 1.5,
+                  }}
+                />
               </div>
 
               <div style={{ marginTop: '0.5rem' }}>

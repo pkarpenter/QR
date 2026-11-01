@@ -130,10 +130,11 @@ export const getQrDetail = async (id) => {
   }
 }
 
-export const createQrCode = async (name) => {
+export const createQrCode = async (name, description = '') => {
+  const safeDesc = (description || '').slice(0, 2500)
   if (BASE) {
     try {
-      const res = await api.post('/api/qr', { name })
+      const res = await api.post('/api/qr', { name, description: safeDesc })
       return res.data
     } catch (err) {
       console.warn('Backend /api/qr POST unreachable, using direct Supabase fallback:', err.message)
@@ -145,18 +146,41 @@ export const createQrCode = async (name) => {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://imqrscan.com'
   const redirect_url = `${origin}/go/${slug}`
 
-  const { data, error } = await supabase
+  let insertData = {
+    name,
+    description: safeDesc,
+    slug,
+    redirect_url,
+    is_enabled: true,
+  }
+
+  let { data, error } = await supabase
     .table('qr_codes')
-    .insert({
-      name,
-      slug,
-      redirect_url,
-      is_enabled: true,
-    })
+    .insert(insertData)
     .select()
     .single()
 
-  if (error) throw error
+  // If Supabase table does not yet have 'description' column
+  if (error && error.message && error.message.includes('description')) {
+    delete insertData.description
+    const retry = await supabase
+      .table('qr_codes')
+      .insert(insertData)
+      .select()
+      .single()
+    if (retry.error) throw retry.error
+    data = retry.data
+  } else if (error) {
+    throw error
+  }
+
+  if (data && safeDesc) {
+    data.description = safeDesc
+    try {
+      localStorage.setItem(`qr_desc_${data.id}`, safeDesc)
+    } catch {}
+  }
+
   return data
 }
 

@@ -315,6 +315,11 @@ export default function Links() {
                 Live
               </span>
             </div>
+            {currentQr.description && (
+              <p style={{ marginTop: '0.4rem', fontSize: '0.85rem', color: '#94a3b8', maxWidth: '600px', lineHeight: '1.4' }}>
+                {currentQr.description}
+              </p>
+            )}
           </div>
         </div>
 

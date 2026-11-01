@@ -40,12 +40,16 @@ async def list_qr_codes(
         qid = s["qr_id"]
         scan_counts[qid] = scan_counts.get(qid, 0) + 1
 
+    from app.services.multi_link_service import get_qr_description, save_qr_description
+
     result = []
     for q in qrs:
         qid = q["id"]
         active = active_map.get(qid)
+        desc = q.get("description") or get_qr_description(qid)
         result.append({
             **q,
+            "description": desc or None,
             "active_link_title": active["title"] if active else None,
             "active_link_url": active["url"] if active else None,
             "total_scans": scan_counts.get(qid, 0),
@@ -61,6 +65,7 @@ async def get_qr_detail(
     db=Depends(get_supabase),
 ):
     """Get single QR code detail with its active link and total scans."""
+    from app.services.multi_link_service import get_qr_description
     res = db.table("qr_codes").select("*").eq("id", qr_id).execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="QR code not found")
@@ -85,8 +90,11 @@ async def get_qr_detail(
         .count or 0
     )
 
+    desc = qr.get("description") or get_qr_description(qr_id)
+
     return {
         **qr,
+        "description": desc or None,
         "active_link": active_link,
         "total_scans": scans_count,
     }
@@ -98,9 +106,11 @@ async def create_qr_code(
     admin=Depends(get_current_admin),
     db=Depends(get_supabase),
 ):
-    """Create a new QR code with an auto-generated permanent slug."""
+    """Create a new QR code with an auto-generated permanent slug and description."""
+    from app.services.multi_link_service import save_qr_description
     slug = generate_slug()
     redirect_url = f"{settings.PUBLIC_BASE_URL.rstrip('/')}/go/{slug}"
+    safe_desc = (payload.description or "")[:2500]
 
     data = {
         "name": payload.name,
@@ -108,10 +118,23 @@ async def create_qr_code(
         "redirect_url": redirect_url,
         "is_enabled": True,
     }
-    res = db.table("qr_codes").insert(data).execute()
-    if not res.data:
-        raise HTTPException(status_code=500, detail="Failed to create QR code")
-    return res.data[0]
+
+    try:
+        data_with_desc = {**data, "description": safe_desc}
+        res = db.table("qr_codes").insert(data_with_desc).execute()
+        created = res.data[0]
+    except Exception:
+        # Fallback if Supabase table does not yet have 'description' column
+        res = db.table("qr_codes").insert(data).execute()
+        if not res.data:
+            raise HTTPException(status_code=500, detail="Failed to create QR code")
+        created = res.data[0]
+
+    if safe_desc:
+        save_qr_description(created["id"], safe_desc)
+
+    created["description"] = safe_desc or None
+    return created
 
 
 @router.patch("/qr/{qr_id}", response_model=QrCodeResponse)
