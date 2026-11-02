@@ -26,43 +26,86 @@ def is_rate_limited(ip_hash: str) -> bool:
     return False
 
 
-UNAVAILABLE_PAGE = """
-<!DOCTYPE html>
+def render_unavailable_page(qr_name: str = "") -> str:
+    name_html = f'<p class="qr-label">{qr_name}</p>' if qr_name else ""
+    return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Link Unavailable — IMPRscan</title>
+  <title>{qr_name + ' — ' if qr_name else ''}Link Unavailable — IMPRscan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       display: flex; align-items: center; justify-content: center; min-height: 100vh;
-      background: #0f1016; color: #f1f2f7; text-align: center; padding: 1.5rem;
-    }
-    .card {
-      background: #161822; border: 1px solid #262938; border-radius: 1rem;
-      padding: 3rem 2rem; max-width: 440px; width: 100%; box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-    }
-    .icon {
-      width: 56px; height: 56px; border-radius: 50%; background: rgba(99, 102, 241, 0.15);
-      color: #6366f1; display: inline-flex; align-items: center; justify-content: center;
-      font-size: 1.75rem; margin-bottom: 1.5rem;
-    }
-    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; }
-    p { color: #9095a8; font-size: 0.95rem; line-height: 1.6; }
+      background: radial-gradient(circle at 50% 10%, #0d1e33 0%, #080c14 75%);
+      color: #f1f2f7; text-align: center; padding: 1.5rem;
+    }}
+    .card {{
+      background: rgba(18, 27, 45, 0.85);
+      border: 1px solid rgba(6, 182, 212, 0.2);
+      border-radius: 1.5rem;
+      padding: 3rem 2rem;
+      max-width: 440px;
+      width: 100%;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.55), 0 0 35px rgba(6,182,212,0.08);
+      backdrop-filter: blur(16px);
+      animation: fadeIn 0.3s ease-out;
+    }}
+    @keyframes fadeIn {{
+      from {{ opacity: 0; transform: translateY(14px); }}
+      to   {{ opacity: 1; transform: translateY(0); }}
+    }}
+    .icon {{
+      width: 64px; height: 64px; border-radius: 20px;
+      background: linear-gradient(135deg, rgba(6,182,212,0.18), rgba(99,102,241,0.18));
+      border: 1px solid rgba(6,182,212,0.35);
+      color: #06b6d4;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 2rem; margin-bottom: 1.5rem;
+      box-shadow: 0 0 24px rgba(6,182,212,0.2);
+    }}
+    .qr-label {{
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #f8fafc;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+    }}
+    h1 {{
+      font-size: 1rem;
+      font-weight: 600;
+      color: #f59e0b;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 0.85rem;
+    }}
+    p.desc {{ color: #9095a8; font-size: 0.9rem; line-height: 1.7; }}
+    .divider {{
+      width: 40px; height: 2px;
+      background: linear-gradient(90deg, #06b6d4, #6366f1);
+      border-radius: 2px;
+      margin: 1rem auto;
+    }}
+    .footer {{ margin-top: 2rem; font-size: 0.78rem; color: #475569; }}
+    .footer span {{ color: #06b6d4; font-weight: 600; }}
   </style>
 </head>
 <body>
   <div class="card">
     <div class="icon">🔗</div>
+    {name_html}
     <h1>Link Unavailable</h1>
-    <p>This QR code is currently inactive or has no destination assigned.<br/>
+    <div class="divider"></div>
+    <p class="desc">This QR code is currently inactive or has no destination assigned.<br/>
        Please contact the organizer or owner for an updated link.</p>
+    <div class="footer">Powered by <span>IMPRscan</span></div>
   </div>
 </body>
-</html>
-"""
+</html>"""
 
 RATE_LIMITED_PAGE = """
 <!DOCTYPE html>
@@ -295,12 +338,12 @@ async def go(
     try:
         qr_res = supabase.table("qr_codes").select("id, name, slug, is_enabled").eq("slug", slug).execute()
         if not qr_res.data:
-            return HTMLResponse(UNAVAILABLE_PAGE, status_code=404)
+            return HTMLResponse(render_unavailable_page(), status_code=404)
         qr = qr_res.data[0]
         if not qr.get("is_enabled", True):
-            return HTMLResponse(UNAVAILABLE_PAGE, status_code=404)
+            return HTMLResponse(render_unavailable_page(qr.get("name", "")), status_code=404)
     except Exception:
-        return HTMLResponse(UNAVAILABLE_PAGE, status_code=404)
+        return HTMLResponse(render_unavailable_page(), status_code=404)
 
     # 1. Handle destination selection from landing page
     if dest:
@@ -364,7 +407,7 @@ async def go(
     # 3. Default single-link mode (the current behavior)
     link = await get_active_link(slug)
     if not link:
-        return HTMLResponse(UNAVAILABLE_PAGE, status_code=404)
+        return HTMLResponse(render_unavailable_page(qr.get("name", "")), status_code=404)
 
     bg.add_task(log_scan, link, request)
     return RedirectResponse(
