@@ -187,9 +187,9 @@ async def toggle_qr_enabled(
     return {**updated, "description": desc or None}
 
 
-def _build_qr_stream(url: str, slug: str, fmt: str):
+def _build_qr_stream(url: str, slug: str, fmt: str, label: str = ""):
     fmt_clean = "svg" if fmt.lower() == "svg" else "png"
-    buf = generate_qr_bytes(url, fmt=fmt_clean)
+    buf = generate_qr_bytes(url, fmt=fmt_clean, label=label)
     media_type = "image/svg+xml" if fmt_clean == "svg" else "image/png"
     filename = f"qr_{slug}.{fmt_clean}"
 
@@ -206,13 +206,12 @@ async def get_qr_image(
     format: str = Query("png", pattern="^(png|svg)$"),
     db=Depends(get_supabase),
 ):
-
-    """Serve/download QR image with error correction H and border 4."""
-    res = db.table("qr_codes").select("slug, redirect_url").eq("id", qr_id).execute()
+    """Serve QR image with the QR name label embedded below it."""
+    res = db.table("qr_codes").select("slug, redirect_url, name").eq("id", qr_id).execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="QR code not found")
     qr = res.data[0]
-    return _build_qr_stream(qr["redirect_url"], qr["slug"], format)
+    return _build_qr_stream(qr["redirect_url"], qr["slug"], format, label=qr.get("name", ""))
 
 
 @router.get("/qr/{qr_id}/download")
@@ -221,9 +220,9 @@ async def download_qr(
     fmt: str = Query("png"),
     db=Depends(get_supabase),
 ):
-    """Download QR code (alias for backward compatibility)."""
-    res = db.table("qr_codes").select("slug, redirect_url").eq("id", qr_id).execute()
+    """Download QR code with the QR name label embedded below it."""
+    res = db.table("qr_codes").select("slug, redirect_url, name").eq("id", qr_id).execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="QR code not found")
     qr = res.data[0]
-    return _build_qr_stream(qr["redirect_url"], qr["slug"], fmt)
+    return _build_qr_stream(qr["redirect_url"], qr["slug"], fmt, label=qr.get("name", ""))
