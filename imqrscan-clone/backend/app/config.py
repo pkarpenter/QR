@@ -3,11 +3,14 @@ from pydantic_settings import BaseSettings
 from functools import lru_cache
 
 _config_dir = Path(__file__).resolve().parent
+# Prefer the repository-root .env (as documented in the README) over any
+# backend-local .env. This matters because the backend is started from the
+# `backend/` directory, which would otherwise shadow the real root .env.
 _candidates = [
-    Path.cwd() / ".env",
-    _config_dir.parent / ".env",
-    _config_dir.parent.parent / ".env",
-    _config_dir.parent.parent.parent / ".env",
+    _config_dir.parent.parent.parent / ".env",  # repo root .env
+    _config_dir.parent / ".env",                # backend/.env fallback
+    _config_dir.parent.parent / ".env",         # imqrscan-clone/.env
+    Path.cwd() / ".env",                        # current working directory
 ]
 _env_file = next((str(p) for p in _candidates if p.exists()), ".env")
 

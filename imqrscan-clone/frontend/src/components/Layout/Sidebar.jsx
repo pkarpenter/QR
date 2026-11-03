@@ -10,11 +10,11 @@ const NAV = [
   { to: '/settings', Icon: Settings, label: 'Settings' },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen = false, onNavigate }) {
   const { user, signOut } = useAuth()
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${isOpen ? ' open' : ''}`}>
       <div className="sidebar-logo flex items-center gap-2.5">
         <img src="/logo.png" alt="IMPRscan" style={{ width: 28, height: 28, objectFit: 'contain' }} />
         <span>IMPR<span style={{ color: 'var(--accent-2)' }}>scan</span></span>
@@ -29,6 +29,7 @@ export default function Sidebar() {
             to={n.to}
             end={n.to === '/'}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            onClick={onNavigate}
           >
             <span className="nav-icon"><IconComponent size={18} /></span>
             {n.label}

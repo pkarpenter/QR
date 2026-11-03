@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { Menu } from 'lucide-react'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import Sidebar from './components/Layout/Sidebar'
 import Login from './pages/Login'
@@ -11,6 +13,7 @@ import PublicRedirect from './pages/PublicRedirect'
 
 function AppRoutes() {
   const { session, loading } = useAuth()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   // Handle public dynamic QR code scan redirect without requiring login
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/go/')) {
@@ -39,8 +42,26 @@ function AppRoutes() {
 
   return (
     <div className="app-layout">
-      <Sidebar />
+      {menuOpen && (
+        <div className="sidebar-overlay" onClick={() => setMenuOpen(false)} />
+      )}
+      <Sidebar isOpen={menuOpen} onNavigate={() => setMenuOpen(false)} />
       <div className="main-content">
+        <header className="mobile-header">
+          <div className="mobile-brand">
+            <img src="/logo.png" alt="IMPRscan" />
+            <span>IMPR<span style={{ color: 'var(--accent-2)' }}>scan</span></span>
+          </div>
+          <button
+            type="button"
+            className="mobile-menu-btn"
+            onClick={() => setMenuOpen(o => !o)}
+            aria-label="Toggle navigation menu"
+            aria-expanded={menuOpen}
+          >
+            <Menu size={22} />
+          </button>
+        </header>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/qr" element={<Dashboard />} />

@@ -547,7 +547,7 @@ export default function Links() {
 
               {/* Multi-Link Mode Toggle Card */}
               <div className="multi-link-mode-card">
-                <div className="multi-link-mode-header">
+                <div className="multi-link-header-row">
                   <label className="multi-link-checkbox-label">
                     <input
                       type="checkbox"
@@ -556,7 +556,7 @@ export default function Links() {
                       disabled={savingMultiMode}
                       onChange={e => handleToggleMultiMode(e.target.checked)}
                     />
-                    <div className="multi-link-title-group">
+                    <div className="multi-link-title-block">
                       <div className="multi-link-main-title">
                         Multiple Active Links (Landing Page Mode)
                         {isMultiLink ? (
@@ -565,7 +565,7 @@ export default function Links() {
                           <span className="badge-single-on">1 Link Active (Direct Redirect)</span>
                         )}
                       </div>
-                      <div className="multi-link-subtitle">
+                      <div className="multi-link-helper-desc">
                         {isMultiLink
                           ? 'Visitors scanning your QR code will see a clean mobile landing page with all selected active links.'
                           : 'Standard behavior: Only 1 link is active at a time. Visitors scanning your QR code are immediately redirected.'}

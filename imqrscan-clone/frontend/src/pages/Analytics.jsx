@@ -52,7 +52,7 @@ export default function Analytics() {
       />
       <div className="page-body">
         {/* Filters */}
-        <div className="card flex gap-3 items-center" style={{ marginBottom: '1.25rem', padding: '1rem 1.5rem' }}>
+        <div className="card analytics-filters flex gap-3 items-center" style={{ marginBottom: '1.25rem', padding: '1rem 1.5rem' }}>
           <div className="form-group" style={{ flex: 1 }}>
             <label>QR Code</label>
             <select value={selected} onChange={e => setSelected(e.target.value)}>
@@ -111,7 +111,7 @@ export default function Analytics() {
             </div>
 
             {/* Country & City Tables */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+            <div className="analytics-breakdown-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
               <BreakdownTable
                 icon={<Globe size={16} color="var(--accent)" />}
                 title="Top Countries"
